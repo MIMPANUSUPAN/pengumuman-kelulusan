@@ -51,18 +51,25 @@
     .hidden {
       display: none;
     }
-    .confetti {
+    #confetti-canvas {
       position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       pointer-events: none;
-      top: 0;
-      left: 0;
+      z-index: 1000;
+    }
+    .toga-animation {
+      width: 120px;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
-  <div class="container" id="formContainer">
+  <canvas id="confetti-canvas" class="hidden"></canvas>
+  <div class="container" id="introContainer">
+    <img src="https://cdn-icons-png.flaticon.com/512/201/201818.png" alt="Anak memakai toga" class="toga-animation" />
     <h1>PENGUMUMAN KELULUSAN SISWA KELAS VI<br>MI MUHAMMADIYAH PANUSUPAN<br>TAHUN AJARAN 2024/2025</h1>
     <div class="sambutan">
       <p>Assalamu'alaikum Warahmatullahi Wabarakatuh</p>
@@ -75,19 +82,24 @@
       <strong>Kepala Madrasah</strong><br>
       Suswati, S.Pd.AUD</p>
     </div>
-    <input type="text" id="nisnInput" placeholder="Masukkan NISN Anda">
-    <br>
+    <button onclick="menujuForm()">Cek Kelulusan</button>
+  </div>
+
+  <div class="container hidden" id="formContainer">
+    <h2>Silakan Masukkan Data Anda</h2>
+    <input type="text" id="nisnInput" placeholder="Masukkan NISN Anda"><br>
+    <input type="text" id="namaInput" placeholder="Masukkan Nama Lengkap Anda"><br>
     <button onclick="cekKelulusan()">Lihat Hasil</button>
   </div>
 
   <div class="container hidden" id="hasilContainer">
     <h2 id="hasilTeks">SELAMAT! ANDA DINYATAKAN LULUS</h2>
     <h3 id="namaSiswa"></h3>
-    <canvas class="confetti" id="confetti-canvas"></canvas>
-    <br>
+    <p><em>"Jadikan ilmu sebagai lentera yang menerangi jalanmu menuju masa depan"</em></p>
     <button onclick="kembali()">Kembali</button>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script>
     const dataLulus = {
       "0132577220": "AFID ALGIFARI",
@@ -103,6 +115,11 @@
       "0123381071": "WULAN DWI SUGIARTO"
     };
 
+    function menujuForm() {
+      document.getElementById("introContainer").classList.add("hidden");
+      document.getElementById("formContainer").classList.remove("hidden");
+    }
+
     function cekKelulusan() {
       const nisn = document.getElementById("nisnInput").value;
       const nama = dataLulus[nisn];
@@ -110,7 +127,8 @@
         document.getElementById("formContainer").classList.add("hidden");
         document.getElementById("hasilContainer").classList.remove("hidden");
         document.getElementById("namaSiswa").textContent = `Nama: ${nama}`;
-        startConfetti();
+        document.getElementById("confetti-canvas").classList.remove("hidden");
+        launchConfetti();
       } else {
         alert("NISN tidak ditemukan atau belum lulus.");
       }
@@ -118,61 +136,45 @@
 
     function kembali() {
       document.getElementById("hasilContainer").classList.add("hidden");
-      document.getElementById("formContainer").classList.remove("hidden");
-      stopConfetti();
+      document.getElementById("introContainer").classList.remove("hidden");
       document.getElementById("nisnInput").value = "";
+      document.getElementById("namaInput").value = "";
+      document.getElementById("confetti-canvas").classList.add("hidden");
     }
 
-    // Confetti animation
-    let confettiCanvas = document.getElementById('confetti-canvas');
-    let confettiCtx = confettiCanvas.getContext('2d');
-    let confettiPieces = [];
+    function launchConfetti() {
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-    function resizeCanvas() {
-      confettiCanvas.width = window.innerWidth;
-      confettiCanvas.height = window.innerHeight;
-    }
-
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    function startConfetti() {
-      confettiPieces = [];
-      for (let i = 0; i < 150; i++) {
-        confettiPieces.push({
-          x: Math.random() * confettiCanvas.width,
-          y: Math.random() * confettiCanvas.height - confettiCanvas.height,
-          r: Math.random() * 6 + 4,
-          d: Math.random() * 50 + 10,
-          color: `hsl(${Math.random() * 360}, 100%, 50%)`,
-          tilt: Math.random() * 10 - 10,
-          tiltAngle: 0,
-        });
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
       }
-      animateConfetti();
-    }
 
-    function stopConfetti() {
-      confettiPieces = [];
-      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-    }
+      const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
 
-    function animateConfetti() {
-      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-      for (let i = 0; i < confettiPieces.length; i++) {
-        let p = confettiPieces[i];
-        confettiCtx.beginPath();
-        confettiCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        confettiCtx.fillStyle = p.color;
-        confettiCtx.fill();
-        p.y += Math.cos(p.d) + 1 + p.r / 2;
-        p.x += Math.sin(p.d);
-        if (p.y > confettiCanvas.height) {
-          p.y = -10;
-          p.x = Math.random() * confettiCanvas.width;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          return;
         }
-      }
-      requestAnimationFrame(animateConfetti);
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti(Object.assign({}, defaults, {
+          particleCount,
+          origin: {
+            x: randomInRange(0.1, 0.3),
+            y: Math.random() - 0.2
+          }
+        }));
+        confetti(Object.assign({}, defaults, {
+          particleCount,
+          origin: {
+            x: randomInRange(0.7, 0.9),
+            y: Math.random() - 0.2
+          }
+        }));
+      }, 250);
     }
   </script>
 </body>
